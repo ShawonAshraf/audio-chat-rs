@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio-to-Audio Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .status.disconnected {
+            background: #fee;
+            color: #c33;
+        }
+
+        .status.connected {
+            background: #efe;
+            color: #3c3;
+        }
+
+        .status.recording {
+            background: #ffeaa7;
+            color: #d63031;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status.processing {
+            background: #74b9ff;
+            color: #0984e3;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        .animation-section {
+            margin-top: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .voice-animation-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .voice-animation-container h3 {
+            color: #333;
+            font-size: 1.1rem;
+            margin: 0;
+        }
+
+        .voice-visualizer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            height: 80px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .voice-bar {
+            width: 5px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 3px;
+            height: 10px;
+            transition: height 0.1s ease;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.3);
+        }
+
+        .voice-visualizer.active .voice-bar {
+            animation: wave 1.2s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .voice-visualizer.breathing .voice-bar {
+            animation: breathe 2s ease-in-out infinite;
+        }
+
+        .voice-visualizer.assistant .voice-bar {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            box-shadow: 0 0 10px rgba(245, 87, 108, 0.3);
+        }
+
+        .voice-visualizer.assistant.active .voice-bar {
+            box-shadow: 0 0 20px rgba(245, 87, 108, 0.6);
+        }
+
+        @keyframes wave {
+            0%, 100% {
+                height: 10px;
+            }
+            50% {
+                height: 60px;
+            }
+        }
+
+        @keyframes breathe {
+            0%, 100% {
+                height: 10px;
+                opacity: 0.5;
+            }
+            50% {
+                height: 20px;
+                opacity: 0.8;
+            }
+        }
+
+        /* Different delays and heights for each bar to create wave effect */
+        .voice-bar:nth-child(1) { animation-delay: 0s; }
+        .voice-bar:nth-child(2) { animation-delay: 0.1s; }
+        .voice-bar:nth-child(3) { animation-delay: 0.15s; }
+        .voice-bar:nth-child(4) { animation-delay: 0.2s; }
+        .voice-bar:nth-child(5) { animation-delay: 0.25s; }
+        .voice-bar:nth-child(6) { animation-delay: 0.3s; }
+        .voice-bar:nth-child(7) { animation-delay: 0.25s; }
+        .voice-bar:nth-child(8) { animation-delay: 0.2s; }
+        .voice-bar:nth-child(9) { animation-delay: 0.15s; }
+        .voice-bar:nth-child(10) { animation-delay: 0.1s; }
+        .voice-bar:nth-child(11) { animation-delay: 0.05s; }
+
+        /* Vary wave heights for more natural look */
+        .voice-visualizer.active .voice-bar:nth-child(1) { animation-name: wave1; }
+        .voice-visualizer.active .voice-bar:nth-child(3) { animation-name: wave2; }
+        .voice-visualizer.active .voice-bar:nth-child(5) { animation-name: wave3; }
+        .voice-visualizer.active .voice-bar:nth-child(7) { animation-name: wave3; }
+        .voice-visualizer.active .voice-bar:nth-child(9) { animation-name: wave2; }
+        .voice-visualizer.active .voice-bar:nth-child(11) { animation-name: wave1; }
+
+        @keyframes wave1 {
+            0%, 100% { height: 10px; }
+            50% { height: 45px; }
+        }
+
+        @keyframes wave2 {
+            0%, 100% { height: 10px; }
+            50% { height: 70px; }
+        }
+
+        @keyframes wave3 {
+            0%, 100% { height: 10px; }
+            50% { height: 55px; }
+        }
+
+        .audio-player {
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        audio {
+            width: 100%;
+            border-radius: 10px;
+            outline: none;
+        }
+
+        .recording-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .recording-dot {
+            width: 12px;
+            height: 12px;
+            background: #d63031;
+            border-radius: 50%;
+            animation: blink 1s infinite;
+            display: none;
+        }
+
+        .recording-dot.active {
+            display: block;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .timer {
+            font-family: 'Courier New', monospace;
+            font-size: 1.2rem;
+            color: #666;
+        }
+
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🎙️ Audio Chat</h1>
+    <p class="subtitle">Voice conversation with AI</p>
+
+    <div id="status" class="status disconnected">Disconnected</div>
+
+    <div class="recording-indicator">
+        <div id="recordingDot" class="recording-dot"></div>
+        <div id="timer" class="timer">00:00</div>
+    </div>
+
+    <div class="controls">
+        <button id="connectBtn" class="btn-primary">Connect</button>
+        <button id="recordBtn" class="btn-primary" disabled>Start Recording</button>
+        <button id="stopBtn" class="btn-danger" disabled>Stop Recording</button>
+    </div>
+
+    <div class="animation-section">
+        <div class="voice-animation-container">
+            <h3>You</h3>
+            <div id="userVisualizer" class="voice-visualizer">
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+            </div>
+        </div>
+
+        <div class="voice-animation-container">
+            <h3>Assistant</h3>
+            <div id="assistantVisualizer" class="voice-visualizer assistant">
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+                <div class="voice-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="audioPlayerContainer" style="display: none;">
+        <audio id="audioPlayer" controls></audio>
+    </div>
+</div>
+
+<script>
+    let ws = null;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let audioContext = null;
+    let recordingStartTime = null;
+    let timerInterval = null;
+
+    const statusDiv = document.getElementById('status');
+    const connectBtn = document.getElementById('connectBtn');
+    const recordBtn = document.getElementById('recordBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const userVisualizer = document.getElementById('userVisualizer');
+    const assistantVisualizer = document.getElementById('assistantVisualizer');
+    const audioPlayer = document.getElementById('audioPlayer');
+    const audioPlayerContainer = document.getElementById('audioPlayerContainer');
+    const recordingDot = document.getElementById('recordingDot');
+    const timerDisplay = document.getElementById('timer');
+
+    let receivedAudioChunks = [];
+
+    // Animation control functions
+    function startUserAnimation() {
+        console.log('[Animation] 🎤 Starting user voice animation');
+        userVisualizer.classList.remove('breathing');
+        userVisualizer.classList.add('active');
+    }
+
+    function stopUserAnimation() {
+        console.log('[Animation] 🛑 Stopping user voice animation');
+        userVisualizer.classList.remove('active');
+        userVisualizer.classList.remove('breathing');
+    }
+
+    function startAssistantAnimation() {
+        console.log('[Animation] 🤖 Starting assistant voice animation');
+        assistantVisualizer.classList.remove('breathing');
+        assistantVisualizer.classList.add('active');
+    }
+
+    function stopAssistantAnimation() {
+        console.log('[Animation] 🛑 Stopping assistant voice animation');
+        assistantVisualizer.classList.remove('active');
+        assistantVisualizer.classList.remove('breathing');
+    }
+
+    function startBreathingAnimation() {
+        console.log('[Animation] 💭 Starting breathing animation (waiting for response)');
+        assistantVisualizer.classList.remove('active');
+        assistantVisualizer.classList.add('breathing');
+    }
+
+    function stopBreathingAnimation() {
+        console.log('[Animation] 🛑 Stopping breathing animation');
+        assistantVisualizer.classList.remove('breathing');
+    }
+
+    function updateStatus(text, className) {
+        statusDiv.textContent = text;
+        statusDiv.className = `status ${className}`;
+    }
+
+    function updateTimer() {
+        if (!recordingStartTime) return;
+        const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+        const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+        const seconds = (elapsed % 60).toString().padStart(2, '0');
+        timerDisplay.textContent = `${minutes}:${seconds}`;
+    }
+
+    function startTimer() {
+        recordingStartTime = Date.now();
+        timerInterval = setInterval(updateTimer, 1000);
+        recordingDot.classList.add('active');
+    }
+
+    function stopTimer() {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+        recordingStartTime = null;
+        timerDisplay.textContent = '00:00';
+        recordingDot.classList.remove('active');
+    }
+
+    function logEvent(message) {
+        console.log(`[${new Date().toLocaleTimeString()}] ${message}`);
+    }
+
+    connectBtn.onclick = async () => {
+        try {
+            console.log('[Connect] Requesting microphone permission...');
+            // Request microphone permission
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            console.log('[Connect] Microphone permission granted');
+            stream.getTracks().forEach(track => track.stop()); // Stop for now
+
+            console.log('[Connect] Establishing WebSocket connection...');
+            // Use window.location.host to make it work on any host
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
+
+            ws.onopen = () => {
+                console.log('[WebSocket] Connection established');
+                updateStatus('Connected - Ready to record', 'connected');
+                connectBtn.disabled = true;
+                recordBtn.disabled = false;
+                logEvent('WebSocket connected');
+            };
+
+            ws.onmessage = async (event) => {
+                // Check if the message is binary
+                if (event.data instanceof Blob) {
+                    console.log('[WebSocket] Received binary data (Blob)');
+                    // Handle binary data if needed (e.g., if server sent audio)
+                    // In this app, we expect JSON, so this is unlikely
+                    return;
+                }
+
+                // Check if it's an ArrayBuffer (less likely from server, but good to check)
+                if (event.data instanceof ArrayBuffer) {
+                    console.log('[WebSocket] Received binary data (ArrayBuffer)');
+                    return;
+                }
+
+                // Assume it's text data (JSON)
+                let data;
+                try {
+                    data = JSON.parse(event.data);
+                } catch (e) {
+                    console.error('[WebSocket] Failed to parse JSON message:', event.data, e);
+                    return;
+                }
+
+                console.log('[WebSocket] Received message:', data.type, data);
+
+                // Special logging for any transcript-related events
+                if (data.type && (data.type.includes('transcript') || data.type.includes('input_audio'))) {
+                    console.log('[🔍 TRANSCRIPT EVENT] Type:', data.type, '| Full data:', data);
+                }
+
+                logEvent(`Received: ${data.type}`);
+
+                if (data.type === 'ready') {
+                    console.log('[Server] Server is ready');
+                } else if (data.type === 'response.audio.delta') {
+                    // Accumulate audio chunks and start assistant animation
+                    console.log('[Audio] Received audio delta, chunk size:', data.delta.length);
+                    receivedAudioChunks.push(data.delta);
+
+                    // Start assistant animation on first audio chunk
+                    if (receivedAudioChunks.length === 1) {
+                        stopBreathingAnimation();
+                        startAssistantAnimation();
+                    }
+                } else if (data.type === 'response.audio_transcript.delta') {
+                    // Assistant is speaking
+                    console.log('[Transcript] Assistant delta:', data.delta);
+                } else if (data.type === 'response_complete') {
+                    console.log('[Response] Response complete. Total audio chunks:', receivedAudioChunks.length);
+                    console.log('[Response] Transcript:', data.transcript);
+                    updateStatus('Response complete - Ready to record', 'connected');
+
+                    // Stop breathing animation
+                    stopBreathingAnimation();
+
+                    // Play the accumulated audio
+                    if (receivedAudioChunks.length > 0) {
+                        console.log('[Audio] Playing accumulated audio chunks...');
+                        await playAudioChunks(receivedAudioChunks);
+                        receivedAudioChunks = [];
+                    } else {
+                        // No audio to play, stop animation immediately
+                        stopAssistantAnimation();
+                    }
+
+                    recordBtn.disabled = false;
+                } else if (data.type === 'conversation.item.input_audio_transcription.completed') {
+                    // User's speech transcript - completed event
+                    console.log('[USER TRANSCRIPT] ✅ Received input_audio_transcription.completed event');
+                    console.log('[USER TRANSCRIPT] Full event data:', JSON.stringify(data, null, 2));
+                    console.log('[USER TRANSCRIPT] Transcript text:', data.transcript);
+
+                    if (data.transcript) {
+                        console.log('[USER TRANSCRIPT] User said:', data.transcript);
+                        logEvent(`User said: ${data.transcript}`);
+                    } else {
+                        console.warn('[USER TRANSCRIPT] ⚠️ Transcript field is empty or missing');
+                    }
+                } else if (data.type === 'conversation.item.input_audio_transcription.delta') {
+                    // User's speech transcript - delta event (streaming)
+                    console.log('[USER TRANSCRIPT] ✅ Received input_audio_transcription.delta event');
+                    console.log('[USER TRANSCRIPT] Delta:', data.delta);
+                } else if (data.type === 'conversation.item.created' && data.item?.content) {
+                    // Check if this event contains user input transcription
+                    console.log('[USER TRANSCRIPT] Checking conversation.item.created event');
+                    console.log('[USER TRANSCRIPT] Item data:', JSON.stringify(data.item, null, 2));
+
+                    const content = data.item.content;
+                    if (Array.isArray(content)) {
+                        for (const contentItem of content) {
+                            if (contentItem.type === 'input_audio' && contentItem.transcript) {
+                                console.log('[USER TRANSCRIPT] ✅ Found transcript in conversation.item.created:', contentItem.transcript);
+                                logEvent(`User said: ${contentItem.transcript}`);
+                            }
+                        }
+                    }
+                } else if (data.type && data.type.includes('input_audio')) {
+                    // Catch any other input_audio related events
+                    console.log('[USER TRANSCRIPT] 📝 Other input_audio event detected:', data.type);
+                    console.log('[USER TRANSCRIPT] Event details:', JSON.stringify(data, null, 2));
+                } else if (data.type === 'error') {
+                    console.error('[Error] Server error:', data.message);
+                    updateStatus(`Error: ${data.message}`, 'disconnected');
+                    stopUserAnimation();
+                    stopAssistantAnimation();
+                    stopBreathingAnimation();
+                }
+            };
+
+            ws.onclose = () => {
+                console.log('[WebSocket] Connection closed');
+                updateStatus('Disconnected', 'disconnected');
+                connectBtn.disabled = false;
+                recordBtn.disabled = true;
+                stopBtn.disabled = true;
+                logEvent('WebSocket disconnected');
+
+                // Stop all animations
+                stopUserAnimation();
+                stopAssistantAnimation();
+                stopBreathingAnimation();
+            };
+
+            ws.onerror = (error) => {
+                console.error('[WebSocket] Connection error:', error);
+                updateStatus('Connection error', 'disconnected');
+                logEvent('WebSocket error');
+            };
+
+        } catch (err) {
+            console.error('[Connect] Error accessing microphone:', err);
+            // Use a custom message box instead of alert()
+            updateStatus('Microphone permission denied.', 'disconnected');
+            logEvent('Error: Microphone permission denied.');
+        }
+    };
+
+    recordBtn.onclick = async () => {
+        try {
+            console.log('[Record] Starting recording...');
+            audioChunks = [];
+            receivedAudioChunks = [];
+
+            console.log('[Record] Requesting audio stream with config: sampleRate=24000, mono');
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    sampleRate: 24000,
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true
+                }
+            });
+
+            console.log('[Record] Audio stream acquired, creating MediaRecorder');
+            mediaRecorder = new MediaRecorder(stream);
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    console.log('[Record] Audio chunk available, size:', event.data.size);
+                    audioChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = async () => {
+                console.log('[Record] Recording stopped. Processing audio...');
+                updateStatus('Processing audio...', 'processing');
+
+                // Stop user animation
+                stopUserAnimation();
+
+                // Stop all tracks
+                stream.getTracks().forEach(track => track.stop());
+                console.log('[Record] Audio tracks stopped');
+
+                // Create a blob from recorded chunks
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                console.log('[Record] Created audio blob, size:', audioBlob.size, 'bytes');
+
+                // Convert to PCM16
+                console.log('[Record] Converting to PCM16...');
+                const pcm16Data = await convertToPCM16(audioBlob);
+                console.log('[Record] PCM16 conversion complete, size:', pcm16Data.byteLength, 'bytes');
+
+                // Send to server
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    console.log('[Record] Sending audio to server via WebSocket');
+                    console.log('[Record] 🎤 Waiting for user transcript from OpenAI...');
+                    ws.send(pcm16Data);
+                    logEvent('Sent audio to server');
+                    updateStatus('Waiting for response...', 'processing');
+
+                    // Start breathing animation while waiting
+                    startBreathingAnimation();
+                } else {
+                    console.error('[Record] WebSocket not open, cannot send audio');
+                }
+            };
+
+            mediaRecorder.start();
+            console.log('[Record] MediaRecorder started');
+            startTimer();
+            updateStatus('Recording... Speak now', 'recording');
+            recordBtn.disabled = true;
+            stopBtn.disabled = false;
+            logEvent('Recording started');
+
+            // Start user animation
+            startUserAnimation();
+
+        } catch (err) {
+            console.error('[Record] Error starting recording:', err);
+            updateStatus('Error starting recording.', 'disconnected');
+            logEvent('Error: Could not start recording.');
+        }
+    };
+
+    stopBtn.onclick = () => {
+        console.log('[Stop] Stop button clicked');
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            console.log('[Stop] Stopping MediaRecorder...');
+            mediaRecorder.stop();
+            stopBtn.disabled = true;
+            stopTimer();
+            logEvent('Recording stopped');
+        } else {
+            console.warn('[Stop] MediaRecorder not in recording state:', mediaRecorder?.state);
+        }
+    };
+
+    async function convertToPCM16(audioBlob) {
+        console.log('[Convert] Starting PCM16 conversion...');
+        // Create an audio context
+        if (!audioContext) {
+            // Request 24000Hz sample rate for output, matching OpenAI's requirement
+            audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+            console.log('[Convert] Created AudioContext with sampleRate:', audioContext.sampleRate);
+        }
+
+        // Convert blob to array buffer
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        console.log('[Convert] Converted blob to ArrayBuffer, size:', arrayBuffer.byteLength);
+
+        // Decode audio data
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        console.log('[Convert] Decoded audio data. Duration:', audioBuffer.duration, 'seconds, Sample rate:', audioBuffer.sampleRate);
+
+        // Resample if necessary
+        let resampledBuffer;
+        if (audioBuffer.sampleRate !== 24000) {
+            console.warn(`[Convert] Input sample rate (${audioBuffer.sampleRate}Hz) differs from target (24000Hz). Resampling...`);
+            resampledBuffer = await resampleAudio(audioBuffer, 24000);
+            console.log('[Convert] Resampling complete. New sample rate:', resampledBuffer.sampleRate);
+        } else {
+            resampledBuffer = audioBuffer;
+        }
+
+        // Get the audio data (first channel)
+        const channelData = resampledBuffer.getChannelData(0);
+        console.log('[Convert] Got channel data, samples:', channelData.length);
+
+        // Convert to 16-bit PCM
+        const pcm16 = new Int16Array(channelData.length);
+        for (let i = 0; i < channelData.length; i++) {
+            // Clamp to [-1, 1] and convert to 16-bit integer
+            const s = Math.max(-1, Math.min(1, channelData[i]));
+            pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+
+        console.log('[Convert] PCM16 conversion complete. Output size:', pcm16.buffer.byteLength, 'bytes');
+        return pcm16.buffer;
+    }
+
+    async function resampleAudio(audioBuffer, targetSampleRate) {
+        const numberOfChannels = audioBuffer.numberOfChannels;
+        const offlineContext = new OfflineAudioContext(
+            numberOfChannels,
+            audioBuffer.duration * targetSampleRate,
+            targetSampleRate
+        );
+
+        const bufferSource = offlineContext.createBufferSource();
+        bufferSource.buffer = audioBuffer;
+        bufferSource.connect(offlineContext.destination);
+        bufferSource.start();
+
+        return await offlineContext.startRendering();
+    }
+
+    async function playAudioChunks(base64Chunks) {
+        try {
+            console.log('[Playback] Playing audio chunks. Total chunks:', base64Chunks.length);
+            // Combine all base64 chunks
+            const combinedBase64 = base64Chunks.join('');
+            console.log('[Playback] Combined base64 length:', combinedBase64.length);
+
+            // Convert base64 to binary
+            const binaryString = atob(combinedBase64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            console.log('[Playback] Converted to binary, size:', bytes.length, 'bytes');
+
+            // Convert PCM16 to WAV
+            const wavBlob = createWavBlob(bytes, 24000); // OpenAI output is 24000Hz
+            console.log('[Playback] Created WAV blob, size:', wavBlob.size, 'bytes');
+            const audioUrl = URL.createObjectURL(wavBlob);
+
+            audioPlayer.src = audioUrl;
+            audioPlayerContainer.style.display = 'block';
+
+            // Stop animation when audio ends
+            audioPlayer.onended = () => {
+                console.log('[Playback] Audio playback completed');
+                stopAssistantAnimation();
+            };
+
+            // Handle errors
+            audioPlayer.onerror = (err) => {
+                console.error('[Playback] Audio playback error:', err);
+                stopAssistantAnimation();
+            };
+
+            console.log('[Playback] Starting audio playback...');
+            await audioPlayer.play();
+
+            logEvent('Playing audio response');
+
+        } catch (err) {
+            console.error('[Playback] Error playing audio:', err);
+            logEvent('Error playing audio');
+            stopAssistantAnimation();
+        }
+    }
+
+    function createWavBlob(pcm16Data, sampleRate) {
+        console.log('[WAV] Creating WAV blob. Sample rate:', sampleRate, 'Data size:', pcm16Data.length);
+        const numChannels = 1;
+        const bitsPerSample = 16;
+        const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+        const blockAlign = numChannels * bitsPerSample / 8;
+        const dataSize = pcm16Data.length;
+        const buffer = new ArrayBuffer(44 + dataSize);
+        const view = new DataView(buffer);
+
+        // WAV header
+        writeString(view, 0, 'RIFF');
+        view.setUint32(4, 36 + dataSize, true);
+        writeString(view, 8, 'WAVE');
+        writeString(view, 12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, numChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, byteRate, true);
+        view.setUint16(32, blockAlign, true);
+        view.setUint16(34, bitsPerSample, true);
+        writeString(view, 36, 'data');
+        view.setUint32(40, dataSize, true);
+
+        // PCM data
+        const pcmView = new Uint8Array(buffer, 44);
+        pcmView.set(pcm16Data);
+
+        return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    function writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+            view.setUint8(offset + i, string.charCodeAt(i));
+        }
+    }
+</script>
+</body>
+</html>
+
