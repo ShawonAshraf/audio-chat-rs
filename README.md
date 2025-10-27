@@ -13,11 +13,15 @@ Create a .env file in the root of the project with your OpenAI API key:
 OPENAI_API_KEY=sk-your-openai-api-key-goes-here
 ```
 
-Run the Server 
+### server
 
 ```bash
 cargo run
 ```
 
-The server will start on 0.0.0.0:8000. Open in BrowserNavigate to http://localhost:8000 in your browser. 
+This will start the server will start on 0.0.0.0:8000. 
+
+### browser
+
+Navigate to http://localhost:8000 in your browser. 
 Click "Connect", then "Start Recording" to begin.
